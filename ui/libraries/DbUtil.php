@@ -55,7 +55,18 @@ class DbUtil {
 	const TAB_MONTHLY_BILL			= 'monthly_bill';
 	const TAB_DAILY_BILL			= 'daily_bill';
 	const TAB_PLATFORM              = 'tab_platform';
+    const TAB_ORIPROFITBAIDU    = 'tab_slot_ori_profit_baidu_daily';
+    const TAB_ORIPROFITGDT    = 'tab_slot_ori_profit_gdt_daily';
+    const TAB_ORIPROFITTUIA    = 'tab_slot_ori_profit_tuia_daily';
+    const TAB_ORIPROFITYEZI    = 'tab_slot_ori_profit_yezi_daily';
+    const TAB_USRSLOTSUM    = 'tab_slot_user_profit_sum_daily';
+    const TAB_USRMEDIASUM    = 'tab_media_user_profit_sum_daily';
+    const TAB_USRACCTSUM    = 'tab_acct_user_profit_sum_daily';
+    const TAB_PROCESSSTATE  = 'tab_process_state';
 	const TAB_ACCOUNT_BALANCE       = 'account_balance';
+	const TAB_BG_USER				= 'bg_user';
+
+    const TAB_DATA_FOR_SDK = 'data_for_sdk';
 
     const TAB_MAP = [
         'account'   => self::TAB_ACCOUNT,
@@ -70,8 +81,18 @@ class DbUtil {
 		'monthly'	=> self::TAB_MONTHLY_BILL,
 		'daily'		=> self::TAB_DAILY_BILL,
 		'platform'	=> self::TAB_PLATFORM,
+        'oriprofitbaidu' => self::TAB_ORIPROFITBAIDU,
+        'oriprofitgdt' => self::TAB_ORIPROFITGDT,
+        'oriprofittuia' => self::TAB_ORIPROFITTUIA,
+        'oriprofityezi' => self::TAB_ORIPROFITYEZI,
+        'usrslotsum' => self::TAB_USRSLOTSUM,
+        'usrmediasum' => self::TAB_USRMEDIASUM,
+        'usracctsum' => self::TAB_USRACCTSUM,
+        'processstate' => self::TAB_PROCESSSTATE,
 		'accbalance' => self::TAB_ACCOUNT_BALANCE,
-    ];
+		'bguser' => self::TAB_BG_USER,
+        'sdkdata' => self::TAB_DATA_FOR_SDK,
+	];
 
     public static $instance;
 
@@ -86,7 +107,7 @@ class DbUtil {
      * @return array
      */
     public function __call($strFuncName, $arrParams = []) {
-        $strTabName = preg_match('#(get|set|udp)([A-Z].*)#', $strFuncName, $arrAcT);
+        $strTabName = preg_match('#(get|set|udp|del|getall)([A-Z].*)#', $strFuncName, $arrAcT);
         if (empty($arrAcT[1])
             || empty($arrAcT[2])
             || (!in_array(strtolower($arrAcT[2]), array_keys(self::TAB_MAP)))) {
@@ -111,9 +132,6 @@ class DbUtil {
      * @return array
      */
     private function get($strTabName, $arrParams) {
-        if (empty($arrParams['limit'])) {
-            $arrParams['limit'] = '0,1';
-        }
         foreach ($arrParams as $act => $sqlPart) {
             if ($act === 'limit') {
                 $arrLimit = explode(',', $sqlPart);
@@ -135,6 +153,25 @@ class DbUtil {
         return $arrRes;
     }
 
+    /**
+     * @param string $strTabName
+     * @param array $arrParams
+     * @return array
+     */
+    private function getall($strTabName, $arrParams) {
+        foreach ($arrParams as $act => $sqlPart) {
+            $this->CI->db->$act($sqlPart);
+        }
+        $objRes = $this->CI->db->get($strTabName);
+		if (empty($objRes)) {
+            return [];
+        }
+        $arrRes = $objRes->result_array();
+        if (!empty($arrRes[0])) {
+            return $arrRes;
+        }
+        return $arrRes;
+    }
 
     /**
      * @param string $strTabName
@@ -162,6 +199,21 @@ class DbUtil {
         }
         $this->CI->db->where($strWhere);
         $this->CI->db->update($strTabName);
+        if ($this->CI->db->affected_rows() === 0) {
+            return [
+                'code' => '-1',
+                'message' => 'affected rows 0',
+            ];
+        }
+    }
+
+    /**
+     * del
+     */
+    private function del($strTabName, $arrParams) {
+        $strWhere = $arrParams['where'];
+        $this->CI->db->where($strWhere);
+        $this->CI->db->delete($strTabName);
         $arrRes = $this->CI->db->error();
         return $arrRes;
     }
@@ -216,7 +268,6 @@ class DbUtil {
 	 * 注：由于ci事务判断出错回滚的条件是语句是否执行成功，而更新操作时，就算影响的条数为0，sql语句执行的结果过仍然为1，因为它执行成功了，只是影响的条数为0。
 	 */
 	public function sqlTrans($arrParams){
-		var_dump($arrParams);
 		if(empty($arrParams)){
 			return [];
 		}
